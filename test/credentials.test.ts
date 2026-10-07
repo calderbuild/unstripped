@@ -82,6 +82,17 @@ describe("ContentCredentials", () => {
     expect(await cc.isAIGenerated(ethers.sha256(gemini.stripped))).to.equal(true);
   });
 
+  it("LabeledFeed labels a post from the registry, stripped copy included", async () => {
+    const { cc, openaiCred } = await deploy();
+    await cc.register(openaiCred);
+    const feed = await (await ethers.getContractFactory("LabeledFeed")).deploy(await cc.getAddress());
+    await feed.post(ethers.sha256(openai.stripped), "ipfs://lighthouse");
+    await feed.post(ethers.sha256(readFileSync("fixtures/roots/google-c2pa-root-g3.der")), "ipfs://not-an-image");
+    const [a, b] = [await feed.posts(0), await feed.posts(1)];
+    expect([a.hasCredential, a.aiGenerated]).to.deep.equal([true, true]);
+    expect([b.hasCredential, b.aiGenerated]).to.deep.equal([false, false]);
+  });
+
   it("is idempotent: a second registration keeps the first registrant", async () => {
     const { cc, other, openaiCred } = await deploy();
     await cc.register(openaiCred);

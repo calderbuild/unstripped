@@ -10,6 +10,8 @@
     "googleLeaf": "0xaaf18ca9b739c0571fb95130944e6d4ed8aaa0a4c1dd1fa79a597d99daa5c163",
     "register-openai": "0x284e47a92e72cf173f99b70cc91a12afe0962fd2437615eea42baedd893eecf9",
     "register-openai-trufo": "0x8ff90fcb37197f1385f71b44e7a10681199c98515d096f7b8d85598c10c8a068",
-    "register-gemini": "0xf8c1dd90d2c520970867a51ee4d563747fc85a71ac12058b1be195c8b2f9c58d"
-  }
+    "register-gemini": "0xf8c1dd90d2c520970867a51ee4d563747fc85a71ac12058b1be195c8b2f9c58d",
+    "feedPost": "0x701391aa5e103dbc5a7eaa2730393616cf1571e38b18ceb612231c65e70c4581"
+  },
+  "labeledFeed": "0xeA5f22B9C48B096DF3ecEfE1550c1b38668452c9"
 }
