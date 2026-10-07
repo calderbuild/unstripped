@@ -1,17 +1,14 @@
 {
   "chainId": 10143,
-  "contentCredentials": "0xF8a0fBc76149a7426ba8a2dBaa14f9068315F7dA",
-  "deployBlock": 68987474,
+  "contentCredentials": "0xd50E50dE55318102471720021014bB311366ebA4",
+  "deployBlock": 68990535,
   "trustListAnchors": 29,
   "txs": {
-    "sslcomIca": "0x00b41b2cc2bf854f0f2cd6faa8bfbb7bb3ed32ebd1744735d98eab3e279f0a3a",
-    "trufoIca": "0x4254de3e59055a598b648b6b2283f76cd0f76943cd84a64e1124e01d31f4563e",
-    "openaiTrufoLeaf": "0x048060c4cc75ce5455b556d79d09d220bb7f8f273013be2314a4c94e9d775d78",
-    "googleLeaf": "0xaaf18ca9b739c0571fb95130944e6d4ed8aaa0a4c1dd1fa79a597d99daa5c163",
-    "register-openai": "0x284e47a92e72cf173f99b70cc91a12afe0962fd2437615eea42baedd893eecf9",
-    "register-openai-trufo": "0x8ff90fcb37197f1385f71b44e7a10681199c98515d096f7b8d85598c10c8a068",
-    "register-gemini": "0xf8c1dd90d2c520970867a51ee4d563747fc85a71ac12058b1be195c8b2f9c58d",
-    "feedPost": "0x701391aa5e103dbc5a7eaa2730393616cf1571e38b18ceb612231c65e70c4581"
+    "sslcomIca": "0x9d7784ceaf14d03bc7ce712b9f4fe43502478fcb1d491a207104e96e7b628b2d",
+    "googleLeaf": "0x8d57bd1e18a9215e7e54b6e53ee9d41b6b55cf3c0e0f214ad63d5f8d387ca1ad",
+    "register-openai": "0x6a8509749f51c4239f2430783459ceb14124761fc8d16a86afd24473824acb27",
+    "register-gemini": "0xcd8e6c7ed4ed52e0876459a28481766233d9bac7a16403d6f92147fa8bbf8140",
+    "feedPost": "0x3d106138be5be47305bc470ab23559fdbbb0da43a89855a88a968bfaf40b7439"
   },
-  "labeledFeed": "0xeA5f22B9C48B096DF3ecEfE1550c1b38668452c9"
+  "labeledFeed": "0xA288b6CAbC4C5fe9eEE68e39391CF775Eed29F98"
 }

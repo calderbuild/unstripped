@@ -7,8 +7,8 @@ OpenAI, Google, Adobe and a growing list of phone makers sign every image they p
 Unstripped is a public registry on Monad that keeps a copy of each credential **after the chain itself has verified it**. The contract checks the certificate chain up to the official C2PA trust list, the signature over the claim, and the hash the claim binds to the image bytes. A copy whose metadata was stripped still hashes to that signed value, so anyone can look it up: a person, a smart contract, an AI agent.
 
 - Live app: **https://unstripped.vercel.app** (drop a PNG, or try one of the sample images; recording a credential needs no wallet)
-- Registry: [`0xF8a0fBc76149a7426ba8a2dBaa14f9068315F7dA`](https://testnet.monadvision.com/address/0xF8a0fBc76149a7426ba8a2dBaa14f9068315F7dA) on Monad testnet
-- Example integration: [`LabeledFeed` 0xeA5f22B9C48B096DF3ecEfE1550c1b38668452c9](https://testnet.monadvision.com/address/0xeA5f22B9C48B096DF3ecEfE1550c1b38668452c9)
+- Registry: [`0xd50E50dE55318102471720021014bB311366ebA4`](https://testnet.monadvision.com/address/0xd50E50dE55318102471720021014bB311366ebA4) on Monad testnet
+- Example integration: [`LabeledFeed` 0xA288b6CAbC4C5fe9eEE68e39391CF775Eed29F98](https://testnet.monadvision.com/address/0xA288b6CAbC4C5fe9eEE68e39391CF775Eed29F98)
 
 ## Why this needs to exist
 
@@ -41,11 +41,10 @@ Then it stores `{signer org, signer name, generator, AI-generated, source type, 
 
 | Operation | Gas |
 |---|---|
-| `register`, OpenAI credential (PS256, signing cert checked against an RSA-4096 CA inline) | 1,142,168 |
-| `register`, OpenAI credential via Trufo (ES256, P256 precompile) | 538,143 |
-| `register`, Gemini credential (ES256, P256 precompile) | 571,920 |
+| `register`, OpenAI credential (PS256, signing cert checked against an RSA-4096 CA inline) | 1,161,741 |
+| `register`, Gemini credential (ES256, P256 precompile) | 602,083 |
 | `addIssuer`, RSA-4096 parent | 753,496 |
-| `addIssuer`, P-384 parent (hinted, see below) | 7,157,222 to 7,411,229 |
+| `addIssuer`, P-384 parent (hinted, see below) | 7,157,222 |
 | `LabeledFeed.post`, label read from the registry | 201,757 |
 
 Transactions for every line are in [`deployments/monadTestnet.json`](deployments/monadTestnet.json).
@@ -54,7 +53,7 @@ Transactions for every line are in [`deployments/monadTestnet.json`](deployments
 
 - **Anchors are the official C2PA trust list**, [downloaded](fixtures/trust-list/) from `c2pa-org/conformance-public`: 29 of its 30 entries, covering Google (including the Pixel camera CAs), Adobe, DigiCert, SSL.com, Huawei, Xiaomi and others. The 30th is vivo's root, which uses P-521, a curve the registry cannot verify yet. The deployer added the anchors once and called `seal()`. After that there is no admin function in the contract.
 - **Everything below an anchor is permissionless.** `addIssuer(tbs, sig, parent, hints)` adds an intermediate CA or a signing certificate if the parent's signature over it verifies. When OpenAI or Google rotates its signing certificate, the first person to register an image signed by the new one adds it; the relayer does this automatically.
-- **P-384 runs in Solidity.** 25 of the 29 anchors use P-384, which no EVM precompile supports. The registry uses Solarity's `ECDSA384` as vendored and audited in [base/nitro-validator](https://github.com/base/nitro-validator), with off-chain *inverse hints*: the caller supplies each modular inverse, and the contract checks `b * inv = 1 mod m` instead of computing it. A wrong hint can only make the call revert, never accept a bad signature. Without hints the same check costs about 53M gas on Monad, above its 30M per-transaction limit. With hints it costs about 7.2 to 7.4M, and it is paid once per certificate.
+- **P-384 runs in Solidity.** 25 of the 29 anchors use P-384, which no EVM precompile supports. The registry uses Solarity's `ECDSA384` as vendored and audited in [base/nitro-validator](https://github.com/base/nitro-validator), with off-chain *inverse hints*: the caller supplies each modular inverse, and the contract checks `b * inv = 1 mod m` instead of computing it. A wrong hint can only make the call revert, never accept a bad signature. Without hints the same check costs about 53M gas on Monad, above its 30M per-transaction limit. With hints it costs about 7.2M, and it is paid once per certificate.
 - **The relayer cannot forge anything.** It only pays gas. It simulates every call first, so an invalid credential costs nothing and fails with the contract's error.
 
 ## Use it from your app
@@ -64,7 +63,7 @@ Transactions for every line are in [`deployments/monadTestnet.json`](deployments
 ```solidity
 import {IContentCredentials} from "unstripped/contracts/IContentCredentials.sol";
 
-IContentCredentials constant CREDENTIALS = IContentCredentials(0xF8a0fBc76149a7426ba8a2dBaa14f9068315F7dA);
+IContentCredentials constant CREDENTIALS = IContentCredentials(0xd50E50dE55318102471720021014bB311366ebA4);
 
 // imageHash = sha256 of the image as your user uploaded it
 bool known = CREDENTIALS.isRegistered(imageHash);
@@ -78,7 +77,7 @@ bool ai = CREDENTIALS.isAIGenerated(imageHash);
 ```ts
 import { registry, lookup } from "./sdk/registry";
 
-const cc = registry("0xF8a0fBc76149a7426ba8a2dBaa14f9068315F7dA", provider);
+const cc = registry("0xd50E50dE55318102471720021014bB311366ebA4", provider);
 const { assetHash, provenance } = await lookup(cc, imageBytes);
 // provenance: { signerOrg: "OpenAI OpCo, LLC", generator: "OpenAI Media Service API", aiGenerated: true, alg: -37, ... }
 ```
@@ -91,7 +90,7 @@ const { assetHash, provenance } = await lookup(cc, imageBytes);
 
 ```bash
 npm install && (cd web && npm install)
-npx hardhat test                                     # 17 tests on real OpenAI and Google files, incl. tampering cases
+npx hardhat test                                     # 18 tests on real OpenAI and Google files, incl. tampering cases
 npx hardhat run scripts/deploy.ts --network monadTestnet
 cd web && npm run dev
 ```

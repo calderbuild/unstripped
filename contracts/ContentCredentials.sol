@@ -53,6 +53,7 @@ contract ContentCredentials {
         bytes32 claimHash;
         address registrant;
         uint64 registeredAt;
+        uint64 registeredBlock;
         int16 alg;
         bool aiGenerated; // digitalSourceType is trainedAlgorithmicMedia or a composite with it
         string signerOrg; // O of the signing certificate
@@ -102,7 +103,14 @@ contract ContentCredentials {
         // The signing certificate is either already a known issuer (added through addIssuer, which
         // verified its chain), or the issuer named in the credential signed it.
         bool known = c.issuer == keyId(leaf) && issuers[c.issuer].keyType != X509.KeyType.None;
-        if (!known && !certSigned(c.issuer, c.leafTbs, leaf.sigAlg, c.leafSig, "")) revert BadCertSignature();
+        if (known) {
+            // leafTbs was not verified on this path, only its key matched; take the name from the
+            // certificate that addIssuer verified, so the key holder cannot sign under another name.
+            leaf.org = issuers[c.issuer].org;
+            leaf.cn = issuers[c.issuer].cn;
+        } else if (!certSigned(c.issuer, c.leafTbs, leaf.sigAlg, c.leafSig, "")) {
+            revert BadCertSignature();
+        }
 
         int256 alg = coseAlg(c.protectedHeader);
         bytes32 h = sha256(
@@ -129,6 +137,7 @@ contract ContentCredentials {
         r.claimHash = sha256(c.claim);
         r.registrant = msg.sender;
         r.registeredAt = uint64(block.timestamp);
+        r.registeredBlock = uint64(block.number);
         r.alg = int16(alg);
         r.signerOrg = leaf.org;
         r.signerName = leaf.cn;

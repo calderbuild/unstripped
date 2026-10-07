@@ -93,6 +93,16 @@ describe("ContentCredentials", () => {
     expect([b.hasCredential, b.aiGenerated]).to.deep.equal([false, false]);
   });
 
+  it("names a known signer from its verified certificate, not from the TBS the caller sends", async () => {
+    const { cc } = await deploy();
+    const tbs = Buffer.from(trufo.credential.leafTbs);
+    const at = tbs.indexOf("OpenAI OpCo, LLC");
+    expect(at).to.be.greaterThan(0);
+    tbs.write("Fakeco OpCo, LLC", at); // same length, still valid DER, same key
+    await cc.register({ ...trufo.credential, leafTbs: tbs, issuer: await cc.idOf(trufo.chain[0].tbs) });
+    expect((await cc.provenanceOf(ethers.sha256(trufo.stripped))).signerOrg).to.equal("OpenAI OpCo, LLC");
+  });
+
   it("is idempotent: a second registration keeps the first registrant", async () => {
     const { cc, other, openaiCred } = await deploy();
     await cc.register(openaiCred);

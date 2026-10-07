@@ -4,7 +4,7 @@ import { extract, Extracted } from "./c2pa";
 
 export const ABI = [
   "function register((bytes32 issuer, bytes leafTbs, bytes leafSig, bytes protectedHeader, bytes claim, bytes signature, bytes hashAssertion, bytes actionsAssertion) c) returns (bytes32)",
-  "function provenanceOf(bytes32) view returns ((bytes32 issuer, bytes32 claimHash, address registrant, uint64 registeredAt, int16 alg, bool aiGenerated, string signerOrg, string signerName, string generator, string sourceType))",
+  "function provenanceOf(bytes32) view returns ((bytes32 issuer, bytes32 claimHash, address registrant, uint64 registeredAt, uint64 registeredBlock, int16 alg, bool aiGenerated, string signerOrg, string signerName, string generator, string sourceType))",
   "function isRegistered(bytes32) view returns (bool)",
   "function isAIGenerated(bytes32) view returns (bool)",
   "function idOf(bytes tbs) view returns (bytes32)",
@@ -26,6 +26,7 @@ export type Provenance = {
   claimHash: string;
   registrant: string;
   registeredAt: number;
+  registeredBlock: number;
   alg: number;
   aiGenerated: boolean;
   signerOrg: string;
@@ -41,6 +42,7 @@ const toProvenance = (r: any): Provenance => ({
   claimHash: r.claimHash,
   registrant: r.registrant,
   registeredAt: Number(r.registeredAt),
+  registeredBlock: Number(r.registeredBlock),
   alg: Number(r.alg),
   aiGenerated: r.aiGenerated,
   signerOrg: r.signerOrg,

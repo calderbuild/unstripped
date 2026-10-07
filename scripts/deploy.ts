@@ -31,7 +31,7 @@ async function main() {
   await (await cc.seal()).wait();
   console.log(`${anchored.length} of ${trustList.length} trust-list entries anchored, sealed`);
   const byName = (cn: string) => trustList.find((t) => Buffer.from(t).includes(Buffer.from(cn)))!;
-  const roots = [byName("SSL.com C2PA RSA Root CA 2025"), byName("Trufo C2PA Root CA (2025"), byName("Google C2PA Root CA G3")];
+  const roots = [byName("SSL.com C2PA RSA Root CA 2025"), byName("Google C2PA Root CA G3")];
 
   // Monad charges the gas limit, so size every limit to its estimate.
   const send = async (label: string, fn: any, ...args: unknown[]) => {
@@ -45,18 +45,16 @@ async function main() {
     addIssuerArgs(cc, cert, parentTbs).then((args) => send(`addIssuer ${label}`, cc.addIssuer, ...args));
 
   const openai = extract(readFileSync("fixtures/openai.png"));
-  const trufo = extract(readFileSync("fixtures/openai-trufo.png"));
   const gemini = extract(readFileSync("fixtures/gemini.png"));
   const txs: Record<string, string> = {};
   txs.sslcomIca = await addIssuer("SSL.com C2PA ICA R1 2025 (RSA)", openai.chain[1], roots[0]);
-  txs.trufoIca = await addIssuer("Trufo C2PA Claim Signing CA (P-384)", trufo.chain[1], roots[1]);
-  txs.openaiTrufoLeaf = await addIssuer("OpenAI Media Service via Trufo (P-384)", trufo.chain[0], trufo.chain[1].tbs);
+  // OpenAI's second signer (Trufo, P-384) is left to the relayer, which adds it the first time
+  // someone records an image it signed. That is the same path a rotated certificate takes.
   // Google's issuing CA is itself on the trust list, so it is already an anchor.
   txs.googleLeaf = await addIssuer("Google Media Processing Services (P-384)", gemini.chain[0], gemini.chain[1].tbs);
 
   for (const [name, x, issuerTbs] of [
     ["openai", openai, openai.chain[1].tbs],
-    ["openai-trufo", trufo, trufo.chain[0].tbs],
     ["gemini", gemini, gemini.chain[0].tbs],
   ] as const) {
     txs[`register-${name}`] = await send(`register ${name} ${ethers.sha256(x.stripped)}`, cc.register, { ...x.credential, issuer: await cc.idOf(issuerTbs) });

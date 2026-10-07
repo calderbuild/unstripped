@@ -276,7 +276,11 @@ function Verdict({ c, steps, onRegister }: { c: Check; steps: Steps; onRegister:
           <dt>Signature</dt>
           <dd>{algName(p.alg)}</dd>
           <dt>Recorded</dt>
-          <dd>{when(p.registeredAt)}</dd>
+          <dd>
+            <a href={`${EXPLORER}/block/${p.registeredBlock}`} target="_blank" rel="noreferrer">
+              {when(p.registeredAt)}, block {p.registeredBlock}
+            </a>
+          </dd>
           <dt>Image hash</dt>
           <dd className="mono">{short(assetHash, 10)}</dd>
         </dl>
