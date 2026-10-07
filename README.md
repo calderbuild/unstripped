@@ -49,6 +49,10 @@ Then it stores `{signer org, signer name, generator, AI-generated, source type, 
 
 Transactions for every line are in [`deployments/monadTestnet.json`](deployments/monadTestnet.json).
 
+## Why Monad
+
+Each registration verifies real certificate cryptography: an RSA-4096 or P-384 certificate signature and an RSA-PSS or P-256 claim signature, plus parsing of X.509 and CBOR, in a single transaction. That is 0.6 to 1.2 million gas per image. On Monad it confirms in about a second at testnet fees, and the native P256 precompile (`0x100`, RIP-7212) verifies the ES256 signatures that Google and phone cameras use for a few thousand gas. A registry that anyone can write to only works if writing is cheap enough that the first person who sees an image can afford to record it.
+
 ## Trust model
 
 - **Anchors are the official C2PA trust list**, [downloaded](fixtures/trust-list/) from `c2pa-org/conformance-public`: 29 of its 30 entries, covering Google (including the Pixel camera CAs), Adobe, DigiCert, SSL.com, Huawei, Xiaomi and others. The 30th is vivo's root, which uses P-521, a curve the registry cannot verify yet. The deployer added the anchors once and called `seal()`. After that there is no admin function in the contract.
@@ -83,6 +87,12 @@ const { assetHash, provenance } = await lookup(cc, imageBytes);
 ```
 
 `lookup` accepts both a file that still carries its manifest and a stripped copy.
+
+**Post from a script.** [`scripts/post.ts`](scripts/post.ts) looks an image up and posts it to `LabeledFeed`, printing the record, the registration transaction and the label the feed wrote:
+
+```bash
+IMAGE=path/to/stripped.png npx hardhat run scripts/post.ts --network monadTestnet
+```
 
 **Record a credential without a wallet.** `POST https://unstripped.vercel.app/api/register` with `{ credential, chain }` as produced by `credentialJSON(extract(file), issuer)` and `chainJSON(extract(file))`. It returns the asset hash and transaction, or the contract's revert reason.
 
