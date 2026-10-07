@@ -100,7 +100,7 @@ IMAGE=path/to/stripped.png npx hardhat run scripts/post.ts --network monadTestne
 
 ```bash
 npm install && (cd web && npm install)
-npx hardhat test                                     # 21 tests on real OpenAI and Google files, incl. tampering cases
+npx hardhat test                                     # 22 tests on real OpenAI and Google files, incl. tampering cases
 npx hardhat run scripts/deploy.ts --network monadTestnet
 cd web && npm run dev
 ```

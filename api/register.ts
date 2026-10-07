@@ -53,6 +53,11 @@ export default async function handler(req: any, res: any) {
   const c = registry(deployment.contentCredentials, new Wallet(key, provider));
   try {
     const chain = Array.isArray(body.chain) ? body.chain.slice(0, 4) : [];
+    // Only onboard the chain this credential was signed with, so a request cannot make the relayer
+    // pay to add unrelated certificates.
+    if (chain.length && chain[0]?.tbs?.toLowerCase() !== cred.leafTbs.toLowerCase()) {
+      return res.status(400).json({ error: "chain[0] must be the credential's signing certificate" });
+    }
     const onboarded = chain.every((x: any) => isHexString(x?.tbs) && isHexString(x?.sig)) ? await onboard(c, chain) : [];
     if (onboarded.length && cred.issuer === "0x" + "00".repeat(32)) cred.issuer = await c.idOf(chain[0].tbs);
     const assetHash: string = await c.register.staticCall(cred);

@@ -116,6 +116,12 @@ describe("ContentCredentials", () => {
     expect(jpeg.stripped.length).to.be.lessThan(jpegFile.length);
   });
 
+  it("rejects a manifest box with a bad length instead of looping", () => {
+    const sig = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const chunk = Buffer.concat([Buffer.from([0, 0, 0, 8]), Buffer.from("caBX"), Buffer.alloc(8), Buffer.alloc(4)]);
+    expect(() => extract(Buffer.concat([sig, chunk]))).to.throw();
+  });
+
   it("reads a JPEG manifest split over several APP11 segments", () => {
     const x = extract(splitApp11(jpegFile));
     expect(Buffer.from(x.credential.claim)).to.deep.equal(Buffer.from(jpeg.credential.claim));

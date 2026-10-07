@@ -85,6 +85,8 @@ function boxes(b: Uint8Array): Box[] {
     let n = u32(b, p);
     let hdr = 8;
     if (n === 1) (n = Number(new DataView(b.buffer, b.byteOffset + p + 8, 8).getBigUint64(0)), (hdr = 16));
+    if (n === 0) n = b.length - p; // ISO BMFF: size 0 runs to the end
+    if (n < hdr || p + n > b.length) throw new Error("bad JUMBF box length");
     out.push({ type: ascii(b.subarray(p + 4, p + 8)), raw: b.subarray(p, p + n), body: b.subarray(p + hdr, p + n) });
     p += n;
   }
