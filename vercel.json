@@ -1,0 +1,6 @@
+{
+  "installCommand": "npm install --omit=dev --no-audit --no-fund && cd web && npm install --no-audit --no-fund",
+  "buildCommand": "cd web && npm run build",
+  "outputDirectory": "web/dist",
+  "framework": null
+}

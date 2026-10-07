@@ -1,0 +1,10 @@
+{
+  "chainId": 10143,
+  "contentCredentials": "0x6506E6D50ABD35B48fdD4220Ad5Ab9B61e29be90",
+  "deployBlock": 68984304,
+  "fixtures": {
+    "openai": "0x2ce527cd2bfe44b00d4d1fcc3d570c89a0d88020953566a5e14a6cf59cc767a5",
+    "gemini": "0x9bc3dc09f37c0d0dbc4dc5e6843c97c11f821a1cfb638411dbdf4f6f227e0119",
+    "openai-trufo": "0xd917375e19df5440427da9ea73acfea3696ccee598af7c3837c1c77169401892"
+  }
+}

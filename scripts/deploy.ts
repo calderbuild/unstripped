@@ -14,15 +14,18 @@ async function main() {
 
   const openai = extract(readFileSync("fixtures/openai.png"));
   const gemini = extract(readFileSync("fixtures/gemini.png"));
+  const trufo = extract(readFileSync("fixtures/openai-trufo.png"));
   // SSL.com C2PA ICA R1 2025: issues OpenAI's signing certificates (RSA, verified on chain).
   await (await cc.addAnchor(openai.chain[1].tbs)).wait();
   // Google Media Processing Services: pinned signer. Its CA is P-384, which no EVM precompile verifies yet.
   await (await cc.addAnchor(gemini.chain[0].tbs)).wait();
+  // OpenAI Media Service, Trufo-issued: OpenAI's second signer. Pinned for the same P-384 reason.
+  await (await cc.addAnchor(trufo.chain[0].tbs)).wait();
   await (await cc.seal()).wait();
   console.log("anchors added and sealed");
 
   const regs: Record<string, string> = {};
-  for (const [name, x, anchorTbs] of [["openai", openai, openai.chain[1].tbs], ["gemini", gemini, gemini.chain[0].tbs]] as const) {
+  for (const [name, x, anchorTbs] of [["openai", openai, openai.chain[1].tbs], ["gemini", gemini, gemini.chain[0].tbs], ["openai-trufo", trufo, trufo.chain[0].tbs]] as const) {
     const tx = await cc.register({ ...x.credential, issuer: await cc.idOf(anchorTbs) });
     const rc = await tx.wait();
     regs[name] = tx.hash;
