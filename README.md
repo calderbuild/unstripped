@@ -51,7 +51,7 @@ Transactions for every line are in [`deployments/monadTestnet.json`](deployments
 
 ## Why Monad
 
-Each registration verifies real certificate cryptography: an RSA-4096 or P-384 certificate signature and an RSA-PSS or P-256 claim signature, plus parsing of X.509 and CBOR, in a single transaction. That is 0.6 to 1.2 million gas per image. On Monad it confirms in about a second at testnet fees, and the native P256 precompile (`0x100`, RIP-7212) verifies the ES256 signatures that Google and phone cameras use for a few thousand gas. A registry that anyone can write to only works if writing is cheap enough that the first person who sees an image can afford to record it.
+Each registration verifies real certificate cryptography: an RSA-4096 or P-384 certificate signature and an RSA-PSS or P-256 claim signature, plus parsing of X.509 and CBOR, in a single transaction. That is 0.6 to 1.2 million gas per image. On Monad it confirms in about a second at testnet fees, and the native P256 precompile (`0x100`, RIP-7212) verifies the ES256 signatures that Google and phone cameras use natively, where Solidity would need millions of gas. A registry that anyone can write to only works if writing is cheap enough that the first person who sees an image can afford to record it.
 
 ## Trust model
 
