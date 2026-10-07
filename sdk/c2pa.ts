@@ -1,6 +1,6 @@
 // Pulls what the ContentCredentials contract needs out of a file's embedded C2PA manifest.
 // Pure byte work, no hashing or network, so it runs the same in Node and the browser.
-// Supports PNG (caBX chunk). JPEG/other containers are not handled yet.
+// Supports PNG (caBX chunk) and JPEG (APP11 segments).
 
 export type Credential = {
   issuer: string; // bytes32 issuer id, filled in by the caller (see issuerIdFor)
@@ -29,17 +29,53 @@ const concat = (...xs: Uint8Array[]) => {
   return out;
 };
 
-// --- PNG -----------------------------------------------------------------------------------
-function pngManifest(file: Uint8Array): { store: Uint8Array; start: number; end: number } {
-  if (ascii(file.subarray(1, 4)) !== "PNG") throw new Error("not a PNG (only PNG is supported for now)");
+// --- Containers ------------------------------------------------------------------------------
+// Each returns the JUMBF manifest store and the byte ranges that hold it. Removing those ranges is
+// exactly what C2PA's hard binding excludes, so sha256 of what is left is the signed asset hash.
+type Found = { store: Uint8Array; cuts: [start: number, end: number][] };
+
+function pngManifest(file: Uint8Array): Found {
   for (let p = 8; p < file.length; ) {
     const n = u32(file, p);
-    const type = ascii(file.subarray(p + 4, p + 8));
-    if (type === "caBX") return { store: file.subarray(p + 8, p + 8 + n), start: p, end: p + 12 + n };
+    if (ascii(file.subarray(p + 4, p + 8)) === "caBX") return { store: file.subarray(p + 8, p + 8 + n), cuts: [[p, p + 12 + n]] };
     p += 12 + n;
   }
   throw new Error("no C2PA manifest in this file");
 }
+
+/// JPEG keeps JUMBF in APP11 segments: "JP", box instance, sequence number, then the box. A box
+/// split over several segments repeats its 8-byte header (16 with an extended length) in each.
+function jpegManifest(file: Uint8Array): Found {
+  const parts: Uint8Array[] = [];
+  const cuts: [number, number][] = [];
+  for (let p = 2; p + 4 <= file.length && file[p] === 0xff; ) {
+    const marker = file[p + 1];
+    if (marker === 0xda || marker === 0xd9) break; // image data starts: no more metadata
+    const end = p + 2 + ((file[p + 2] << 8) | file[p + 3]);
+    if (marker === 0xeb && file[p + 4] === 0x4a && file[p + 5] === 0x50) {
+      const box = file.subarray(p + 12, end);
+      const header = u32(box, 0) === 1 ? 16 : 8;
+      parts.push(parts.length ? box.subarray(header) : box);
+      cuts.push([p, end]);
+    }
+    p = end;
+  }
+  if (!parts.length) throw new Error("no C2PA manifest in this file");
+  return { store: concat(...parts), cuts };
+}
+
+function findManifest(file: Uint8Array): Found {
+  if (file[0] === 0x89 && ascii(file.subarray(1, 4)) === "PNG") return pngManifest(file);
+  if (file[0] === 0xff && file[1] === 0xd8) return jpegManifest(file);
+  throw new Error("only PNG and JPEG are supported");
+}
+
+const without = (file: Uint8Array, cuts: [number, number][]) => {
+  const keep: Uint8Array[] = [];
+  let p = 0;
+  for (const [a, b] of cuts) (keep.push(file.subarray(p, a)), (p = b));
+  return concat(...keep, file.subarray(p));
+};
 
 // --- JUMBF ---------------------------------------------------------------------------------
 type Box = { type: string; raw: Uint8Array; body: Uint8Array };
@@ -123,8 +159,21 @@ export function splitCert(cert: Uint8Array) {
   return { tbs: cert.subarray(s, tbsEnd), sig: cert.subarray(bs + 1, be) };
 }
 
+/// Raw DER of a TBS certificate's issuer and subject names, to find a certificate's parent.
+export function names(tbs: Uint8Array) {
+  let [p] = der(tbs, 0);
+  if (tbs[p] === 0xa0) p = der(tbs, p)[1]; // version
+  p = der(tbs, p)[1]; // serial
+  p = der(tbs, p)[1]; // signature algorithm
+  const [, issuerEnd] = der(tbs, p);
+  const issuer = tbs.subarray(p, issuerEnd);
+  const [, validityEnd] = der(tbs, issuerEnd);
+  const subject = tbs.subarray(validityEnd, der(tbs, validityEnd)[1]);
+  return { issuer, subject };
+}
+
 export function extract(file: Uint8Array): Extracted {
-  const m = pngManifest(file);
+  const m = findManifest(file);
   const store = superbox(boxes(m.store)[0].body);
   const manifest = store.children[store.children.length - 1]; // the active manifest is the last one
   const claimNode = manifest.children.find((x) => x.label.startsWith("c2pa.claim"));
@@ -150,7 +199,7 @@ export function extract(file: Uint8Array): Extracted {
     },
     chain,
     alg: ph.get(1) as number,
-    stripped: concat(file.subarray(0, m.start), file.subarray(m.end)),
+    stripped: without(file, m.cuts),
   };
 }
 

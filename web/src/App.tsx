@@ -144,11 +144,11 @@ export default function App() {
               </figure>
             ) : (
               <button className="drop" onClick={() => input.current?.click()} disabled={busy}>
-                <strong>{busy ? "Checking the registry…" : "Drop a PNG here"}</strong>
+                <strong>{busy ? "Checking the registry…" : "Drop a PNG or JPEG here"}</strong>
                 <span>or choose a file. The image stays in your browser; only its hash is looked up.</span>
               </button>
             )}
-            <input ref={input} type="file" accept="image/png" hidden onChange={(e) => onFiles(e.target.files)} />
+            <input ref={input} type="file" accept="image/png,image/jpeg" hidden onChange={(e) => onFiles(e.target.files)} />
             {check && (
               <button className="again" onClick={() => input.current?.click()} disabled={busy}>
                 Check another image

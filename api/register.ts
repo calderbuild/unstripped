@@ -4,16 +4,23 @@
 import { JsonRpcProvider, Wallet, isHexString } from "ethers";
 import { registry } from "../sdk/registry";
 import { addIssuerArgs } from "../sdk/hints";
+import { names } from "../sdk/c2pa";
 import deployment from "../deployments/monadTestnet.json";
+import anchors from "../sdk/anchors.json";
 
 // Monad charges the gas limit, not gas used, so size each limit to its estimate.
 const sized = async (fn: any, ...args: unknown[]) => fn(...args, { gasLimit: ((await fn.estimateGas(...args)) * 12n) / 10n });
 
 /// A signer the registry has not seen yet (a rotated OpenAI or Google certificate, say) is added
 /// first, verified on chain against its CA. Walks the chain from the top so each certificate's
-/// parent is known by the time it is added. Returns the labels of what it added.
+/// parent is known by the time it is added. Manifests usually stop below the root, so the trust-list
+/// anchor the top certificate names as its issuer is appended first. Returns the tx hashes it sent.
 export async function onboard(c: any, chain: { tbs: string; sig: string }[]): Promise<string[]> {
   const added: string[] = [];
+  const bytes = (h: string) => Buffer.from(h.slice(2), "hex");
+  const issuer = Buffer.from(names(bytes(chain[chain.length - 1].tbs)).issuer);
+  const root = anchors.find((a) => Buffer.from(names(bytes(a)).subject).equals(issuer));
+  if (root) chain = [...chain, { tbs: root, sig: "0x" }];
   const known = async (tbs: string) => {
     const id = await c.idOf(tbs).catch(() => null);
     return id && Number((await c.issuers(id)).keyType) !== 0;

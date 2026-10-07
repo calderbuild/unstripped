@@ -11,6 +11,20 @@ const gemini = extract(readFileSync("fixtures/gemini.png"));
 const OPENAI_ASSET = "0xdff2d1f58ef9566578bd8129c6659a16a19e6b81da7fa5c57515494e394020b5"; // from c2pa-python
 
 const trufo = extract(readFileSync("fixtures/openai-trufo.png"));
+const jpegFile = readFileSync("fixtures/openai.jpg");
+const jpeg = extract(jpegFile);
+
+/// The same JPEG with its manifest box split over two APP11 segments, as large manifests are.
+function splitApp11(file: Buffer): Buffer {
+  const p = 20; // APP0 (JFIF) is 18 bytes, then the APP11 marker
+  const len = file.readUInt16BE(p + 2);
+  const head = file.subarray(p + 4, p + 12); // "JP", instance, sequence
+  const box = file.subarray(p + 12, p + 2 + len);
+  const cut = 5000;
+  const seg = (body: Buffer) => Buffer.concat([Buffer.from([0xff, 0xeb]), Buffer.from([(body.length + 2) >> 8, (body.length + 2) & 255]), body]);
+  const second = Buffer.concat([head.subarray(0, 4), Buffer.from([0, 0, 0, 2]), box.subarray(0, 8), box.subarray(cut)]);
+  return Buffer.concat([file.subarray(0, p), seg(Buffer.concat([head, box.subarray(0, cut)])), seg(second), file.subarray(p + 2 + len)]);
+}
 const root = (f: string) => splitCert(readFileSync(`fixtures/roots/${f}.der`)).tbs;
 const ROOTS = ["sslcom-c2pa-rsa-root-2025", "trufo-c2pa-root-2025-p384", "google-c2pa-root-g3"].map(root);
 
@@ -80,6 +94,32 @@ describe("ContentCredentials", () => {
     expect(added.length).to.equal(1);
     await cc.register({ ...gemini.credential, issuer: await cc.idOf(gemini.chain[0].tbs) });
     expect(await cc.isAIGenerated(ethers.sha256(gemini.stripped))).to.equal(true);
+  });
+
+  it("relayer onboards a whole chain whose root is not in the manifest (OpenAI via Trufo)", async () => {
+    const [, other] = await ethers.getSigners();
+    const cc = await (await ethers.getContractFactory("ContentCredentials")).deploy();
+    for (const r of ROOTS) await cc.addAnchor(r);
+    await cc.seal();
+    const added = await onboard(cc.connect(other), chainJSON(trufo)); // ICA under the trust-list root, then the leaf
+    expect(added.length).to.equal(2);
+    await cc.register({ ...trufo.credential, issuer: await cc.idOf(trufo.chain[0].tbs) });
+    expect((await cc.provenanceOf(ethers.sha256(trufo.stripped))).signerOrg).to.equal("OpenAI OpCo, LLC");
+  });
+
+  it("reads JPEG: verifies OpenAI's credential from APP11 and records the stripped file's hash", async () => {
+    const { cc } = await deploy();
+    await cc.register({ ...jpeg.credential, issuer: await cc.idOf(jpeg.chain[1].tbs) }); // PS256 under the SSL.com ICA
+    const r = await cc.provenanceOf(ethers.sha256(jpeg.stripped));
+    expect(r.signerOrg).to.equal("OpenAI OpCo, LLC");
+    expect(r.aiGenerated).to.equal(true);
+    expect(jpeg.stripped.length).to.be.lessThan(jpegFile.length);
+  });
+
+  it("reads a JPEG manifest split over several APP11 segments", () => {
+    const x = extract(splitApp11(jpegFile));
+    expect(Buffer.from(x.credential.claim)).to.deep.equal(Buffer.from(jpeg.credential.claim));
+    expect(ethers.sha256(x.stripped)).to.equal(ethers.sha256(jpeg.stripped));
   });
 
   it("LabeledFeed labels a post from the registry, stripped copy included", async () => {

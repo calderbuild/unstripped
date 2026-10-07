@@ -40,7 +40,7 @@ async function main() {
   say(`  post(${hash.slice(0, 10)}…, uri)`);
   const tx = await feed.post(hash, `ipfs://${basename(process.env.IMAGE!)}`);
   const rc = (await tx.wait())!;
-  const ev = feed.interface.parseLog(rc.logs.find((l) => l.address.toLowerCase() === dep.labeledFeed.toLowerCase())!)!;
+  const ev = feed.interface.parseLog(rc.logs.find((l: any) => l.address.toLowerCase() === dep.labeledFeed.toLowerCase())!)!;
   say(`  tx           ${tx.hash}`);
   say(`  block        ${rc.blockNumber}, gas ${rc.gasUsed}`);
   say(`  Posted #${ev.args.id}: hasCredential=${ev.args.hasCredential} aiGenerated=${ev.args.aiGenerated}`);
