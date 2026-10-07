@@ -61,6 +61,9 @@ export default async function handler(req: any, res: any) {
     const rc = await tx.wait();
     return res.status(200).json({ assetHash, txHash: tx.hash, block: rc?.blockNumber, gasUsed: rc?.gasUsed.toString(), onboarded });
   } catch (e: any) {
+    if (e?.code === "INSUFFICIENT_FUNDS" || /insufficient (funds|balance)/i.test(String(e?.message))) {
+      return res.status(503).json({ error: "The relayer is out of testnet MON right now, so this credential was not recorded. Your file is fine, and lookups still work. Try again later." });
+    }
     const reason = e?.revert?.name ?? e?.shortMessage ?? String(e).slice(0, 160);
     return res.status(422).json({ error: `the registry rejected this credential: ${reason}` });
   }

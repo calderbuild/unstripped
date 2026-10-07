@@ -12,6 +12,7 @@ const cc = registry(deployment.contentCredentials, provider);
 const SAMPLES = [
   { file: "openai-stripped.png", label: "OpenAI image, metadata stripped" },
   { file: "gemini-stripped.png", label: "Gemini image, metadata stripped" },
+  { file: "openai-jpeg-stripped.jpg", label: "OpenAI JPEG, metadata stripped" },
   { file: "openai-credential.png", label: "OpenAI image, credential intact" },
 ];
 
