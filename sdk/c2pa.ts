@@ -115,7 +115,7 @@ function der(b: Uint8Array, p: number): [start: number, end: number] {
   }
   return [s, s + len];
 }
-function splitCert(cert: Uint8Array) {
+export function splitCert(cert: Uint8Array) {
   const [s] = der(cert, 0);
   const [, tbsEnd] = der(cert, s);
   const [, algEnd] = der(cert, tbsEnd);

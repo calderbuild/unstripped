@@ -12,13 +12,15 @@ library X509 {
     bytes constant OID_RSA = hex"2a864886f70d010101";
     bytes constant OID_EC = hex"2a8648ce3d0201";
     bytes constant OID_P256 = hex"2a8648ce3d030107";
+    bytes constant OID_P384 = hex"2b81040022";
     bytes constant OID_O = hex"55040a";
     bytes constant OID_CN = hex"550403";
 
     enum KeyType {
         None,
         RSA,
-        P256
+        P256,
+        P384
     }
 
     struct Cert {
@@ -26,9 +28,7 @@ library X509 {
         string org;
         string cn;
         KeyType keyType;
-        bytes rsaModulus;
-        bytes32 x;
-        bytes32 y;
+        bytes key; // RSA modulus, or x || y of an EC point (32-byte coordinates for P-256, 48 for P-384)
     }
 
     function hdr(bytes calldata b, uint256 p) internal pure returns (uint8 tag, uint256 start, uint256 end) {
@@ -98,31 +98,31 @@ library X509 {
             if (keccak256(b[es:ee]) != keccak256(hex"010001")) revert UnsupportedKey();
             if (b[ns] == 0) ns++;
             c.keyType = KeyType.RSA;
-            c.rsaModulus = b[ns:ne];
+            c.key = b[ns:ne];
         } else if (alg == keccak256(OID_EC)) {
             (uint256 cs, uint256 ce) = expect(b, oe, 0x06);
-            if (keccak256(b[cs:ce]) != keccak256(OID_P256)) revert UnsupportedKey();
-            if (be - bs != 66 || b[bs + 1] != 0x04) revert UnsupportedKey();
-            c.keyType = KeyType.P256;
-            c.x = bytes32(b[bs + 2:bs + 34]);
-            c.y = bytes32(b[bs + 34:bs + 66]);
+            bytes32 curve = keccak256(b[cs:ce]);
+            uint256 size = curve == keccak256(OID_P256) ? 32 : curve == keccak256(OID_P384) ? 48 : 0;
+            if (size == 0 || be - bs != 2 + 2 * size || b[bs + 1] != 0x04) revert UnsupportedKey();
+            c.keyType = size == 32 ? KeyType.P256 : KeyType.P384;
+            c.key = b[bs + 2:be];
         } else {
             revert UnsupportedKey();
         }
     }
 
-    /// r and s from a DER ECDSA-Sig-Value.
-    function ecdsaSig(bytes calldata sig) internal pure returns (bytes32 r, bytes32 s) {
+    /// r || s from a DER ECDSA-Sig-Value, each left-padded to `size` bytes.
+    function ecdsaSig(bytes calldata sig, uint256 size) internal pure returns (bytes memory) {
         (uint256 p,) = expect(sig, 0, 0x30);
         (uint256 rs, uint256 re) = expect(sig, p, 0x02);
         (uint256 ss, uint256 se) = expect(sig, re, 0x02);
-        r = toWord(sig[rs:re]);
-        s = toWord(sig[ss:se]);
+        return bytes.concat(pad(sig[rs:re], size), pad(sig[ss:se], size));
     }
 
-    function toWord(bytes calldata v) private pure returns (bytes32 out) {
-        while (v.length > 32 && v[0] == 0) v = v[1:];
-        if (v.length > 32) revert BadDER();
-        out = bytes32(v) >> (8 * (32 - v.length));
+    function pad(bytes calldata v, uint256 size) private pure returns (bytes memory out) {
+        while (v.length > size && v[0] == 0) v = v[1:];
+        if (v.length > size) revert BadDER();
+        out = new bytes(size);
+        for (uint256 i; i < v.length; i++) out[size - v.length + i] = v[i];
     }
 }

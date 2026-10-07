@@ -4,6 +4,9 @@ pragma solidity ^0.8.24;
 import {CBOR} from "./lib/CBOR.sol";
 import {X509} from "./lib/X509.sol";
 import {Sig} from "./lib/Sig.sol";
+import {ECDSA384} from "./vendor/nitro/vendor/ECDSA384.sol";
+import {ECDSA384Curve} from "./vendor/nitro/ECDSA384Curve.sol";
+import {Sha2Ext} from "./vendor/nitro/Sha2Ext.sol";
 
 /// Unstripped: a public registry of C2PA Content Credentials whose signatures the chain itself
 /// verifies. Anyone can submit the credential an AI model or camera embedded in a file. The
@@ -21,15 +24,14 @@ contract ContentCredentials {
 
     bytes constant OID_SHA256_RSA = hex"2a864886f70d01010b";
     bytes constant OID_ECDSA_SHA256 = hex"2a8648ce3d040302";
+    bytes constant OID_ECDSA_SHA384 = hex"2a8648ce3d040303";
     int256 constant ES256 = -7;
     int256 constant PS256 = -37;
 
     struct Issuer {
         X509.KeyType keyType;
-        bytes rsaModulus;
-        bytes32 x;
-        bytes32 y;
-        bytes32 parent; // 0 for an anchor fixed at deployment
+        bytes key; // RSA modulus or EC point x || y
+        bytes32 parent; // 0 for a trust anchor
         string org;
         string cn;
     }
@@ -83,21 +85,24 @@ contract ContentCredentials {
         sealed_ = true;
     }
 
-    /// Anyone can add an intermediate CA, as long as an existing issuer signed its certificate.
-    function addIssuer(bytes calldata tbs, bytes calldata sig, bytes32 parent) external returns (bytes32) {
+    /// Anyone can add an intermediate CA or a signing certificate, as long as an existing issuer
+    /// signed it. `hints` are the modular inverses for a P-384 parent, computed off chain
+    /// (tools/p384_hints.js) and each checked on chain, so a wrong hint can only make this revert.
+    function addIssuer(bytes calldata tbs, bytes calldata sig, bytes32 parent, bytes calldata hints)
+        external
+        returns (bytes32)
+    {
         X509.Cert memory c = X509.parse(tbs);
-        if (!certSigned(parent, tbs, c.sigAlg, sig)) revert BadCertSignature();
+        if (!certSigned(parent, tbs, c.sigAlg, sig, hints)) revert BadCertSignature();
         return _addIssuer(c, parent);
     }
 
     function register(Credential calldata c) external returns (bytes32 assetHash) {
         X509.Cert memory leaf = X509.parse(c.leafTbs);
-        // Either the signing certificate is itself a pinned anchor (for chains whose CA uses a
-        // curve the EVM cannot verify yet, such as Google's P-384 intermediate), or a known
-        // issuer signed it.
-        bool pinned = c.issuer == keyId(leaf) && issuers[c.issuer].parent == 0
-            && issuers[c.issuer].keyType != X509.KeyType.None;
-        if (!pinned && !certSigned(c.issuer, c.leafTbs, leaf.sigAlg, c.leafSig)) revert BadCertSignature();
+        // The signing certificate is either already a known issuer (added through addIssuer, which
+        // verified its chain), or the issuer named in the credential signed it.
+        bool known = c.issuer == keyId(leaf) && issuers[c.issuer].keyType != X509.KeyType.None;
+        if (!known && !certSigned(c.issuer, c.leafTbs, leaf.sigAlg, c.leafSig, "")) revert BadCertSignature();
 
         int256 alg = coseAlg(c.protectedHeader);
         bytes32 h = sha256(
@@ -156,20 +161,31 @@ contract ContentCredentials {
 
     // --- checks ---------------------------------------------------------------------------
 
-    function certSigned(bytes32 issuerId, bytes calldata tbs, bytes memory sigAlg, bytes calldata sig)
+    function certSigned(bytes32 issuerId, bytes calldata tbs, bytes memory sigAlg, bytes calldata sig, bytes memory hints)
         internal
         view
         returns (bool)
     {
         Issuer storage i = issuers[issuerId];
         if (i.keyType == X509.KeyType.None) revert UnknownIssuer(issuerId);
-        bytes32 h = sha256(tbs);
         if (i.keyType == X509.KeyType.RSA) {
-            return keccak256(sigAlg) == keccak256(OID_SHA256_RSA) && Sig.pkcs1Sha256(h, sig, i.rsaModulus);
+            return keccak256(sigAlg) == keccak256(OID_SHA256_RSA) && Sig.pkcs1Sha256(sha256(tbs), sig, i.key);
         }
-        if (keccak256(sigAlg) != keccak256(OID_ECDSA_SHA256)) return false;
-        (bytes32 r, bytes32 s) = X509.ecdsaSig(sig);
-        return Sig.p256(h, r, s, i.x, i.y);
+        if (i.keyType == X509.KeyType.P256) {
+            if (keccak256(sigAlg) != keccak256(OID_ECDSA_SHA256)) return false;
+            bytes memory rs = X509.ecdsaSig(sig, 32);
+            (bytes32 r, bytes32 s, bytes32 x, bytes32 y) = (word(rs, 0), word(rs, 32), word(i.key, 0), word(i.key, 32));
+            return Sig.p256(sha256(tbs), r, s, x, y);
+        }
+        // P-384, which C2PA CAs such as Google's and Trufo's use. No precompile exists for it, so this
+        // runs in Solidity (Solarity's ECDSA384 as vendored by base/nitro-validator); it is only
+        // needed once per certificate, when the certificate is added as an issuer.
+        if (keccak256(sigAlg) != keccak256(OID_ECDSA_SHA384)) return false;
+        bytes memory m = tbs;
+        bytes memory h384 = Sha2Ext.sha384(m, 0, m.length);
+        bytes memory rs = X509.ecdsaSig(sig, 48);
+        if (hints.length == 0) return ECDSA384.verify(ECDSA384Curve.p384(), h384, rs, i.key);
+        return ECDSA384.verifyWithHints(ECDSA384Curve.p384(), h384, rs, i.key, hints);
     }
 
     function claimSigned(int256 alg, bytes32 h, bytes calldata sig, X509.Cert memory leaf)
@@ -177,9 +193,9 @@ contract ContentCredentials {
         view
         returns (bool)
     {
-        if (alg == PS256 && leaf.keyType == X509.KeyType.RSA) return Sig.pssSha256(h, sig, leaf.rsaModulus);
+        if (alg == PS256 && leaf.keyType == X509.KeyType.RSA) return Sig.pssSha256(h, sig, leaf.key);
         if (alg == ES256 && leaf.keyType == X509.KeyType.P256 && sig.length == 64) {
-            return Sig.p256(h, bytes32(sig[:32]), bytes32(sig[32:]), leaf.x, leaf.y);
+            return Sig.p256(h, bytes32(sig[:32]), bytes32(sig[32:]), word(leaf.key, 0), word(leaf.key, 32));
         }
         revert UnsupportedAlg(alg);
     }
@@ -255,12 +271,12 @@ contract ContentCredentials {
         id = keyId(c);
         Issuer storage i = issuers[id];
         if (i.keyType != X509.KeyType.None) return id;
-        (i.keyType, i.rsaModulus, i.x, i.y, i.parent, i.org, i.cn) = (c.keyType, c.rsaModulus, c.x, c.y, parent, c.org, c.cn);
+        (i.keyType, i.key, i.parent, i.org, i.cn) = (c.keyType, c.key, parent, c.org, c.cn);
         emit IssuerAdded(id, parent, c.org, c.cn);
     }
 
     function keyId(X509.Cert memory c) internal pure returns (bytes32) {
-        return c.keyType == X509.KeyType.RSA ? keccak256(c.rsaModulus) : keccak256(abi.encodePacked(c.x, c.y));
+        return keccak256(c.key);
     }
 
     /// Offset of the CBOR payload in an assertion superbox: skip the jumd box and the cbor box header.
@@ -268,6 +284,12 @@ contract ContentCredentials {
         uint256 jl = uint32(bytes4(box[:4]));
         require(bytes4(box[jl + 4:jl + 8]) == "cbor", "assertion: not cbor");
         return jl + 8;
+    }
+
+    function word(bytes memory b, uint256 off) internal pure returns (bytes32 w) {
+        assembly {
+            w := mload(add(add(b, 32), off))
+        }
     }
 
     function endsWith(bytes calldata s, bytes memory suffix) internal pure returns (bool) {

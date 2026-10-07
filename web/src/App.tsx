@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { JsonRpcProvider } from "ethers";
-import { registry, lookup, resolveIssuer, credentialJSON, provenanceOf, type Lookup, type Provenance } from "../../sdk/registry";
+import { registry, lookup, resolveIssuer, credentialJSON, chainJSON, provenanceOf, type Lookup, type Provenance } from "../../sdk/registry";
 import deployment from "../../deployments/monadTestnet.json";
 
 const RPC = "https://testnet-rpc.monad.xyz";
@@ -76,12 +76,13 @@ export default function App() {
     if (!x || !check) return;
     setSteps({ state: "sending" });
     try {
-      const issuer = await resolveIssuer(cc, x);
-      if (!issuer) throw new Error("none of this file's certificates chain to a trust anchor in the registry");
+      // Unknown signer (e.g. a rotated certificate): send the zero id and the chain, and the relayer
+      // adds the signer first, verified on chain against its CA.
+      const issuer = (await resolveIssuer(cc, x)) ?? "0x" + "00".repeat(32);
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ credential: credentialJSON(x, issuer) }),
+        body: JSON.stringify({ credential: credentialJSON(x, issuer), chain: chainJSON(x) }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error);

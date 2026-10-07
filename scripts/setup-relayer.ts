@@ -12,7 +12,7 @@ async function main() {
   const address = readFileSync(file, "utf8").match(/RELAYER_ADDRESS=(\S+)/)![1];
   const p = new JsonRpcProvider("https://testnet-rpc.monad.xyz", 10143, { staticNetwork: true });
   const d = new Wallet(process.env.PRIVATE_KEY!, p);
-  if ((await p.getBalance(address)) < parseEther("1")) await (await d.sendTransaction({ to: address, value: parseEther("2") })).wait();
+  if ((await p.getBalance(address)) < parseEther("3")) await (await d.sendTransaction({ to: address, value: parseEther("3") - (await p.getBalance(address)) })).wait();
   console.log(`relayer ${address} balance ${formatEther(await p.getBalance(address))} MON`);
 }
 main().catch((e) => (console.error(e), process.exit(1)));

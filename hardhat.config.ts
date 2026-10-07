@@ -11,7 +11,7 @@ const config: HardhatUserConfig = {
     settings: { optimizer: { enabled: true, runs: 200 }, evmVersion: "cancun", viaIR: true },
   },
   networks: {
-    hardhat: { enableRip7212: true },
+    hardhat: { enableRip7212: true, blockGasLimit: 500_000_000, hardfork: "cancun" },
     monadTestnet: { url: "https://testnet-rpc.monad.xyz", chainId: 10143, accounts },
   },
 };

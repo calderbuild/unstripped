@@ -8,7 +8,8 @@ export const ABI = [
   "function isRegistered(bytes32) view returns (bool)",
   "function isAIGenerated(bytes32) view returns (bool)",
   "function idOf(bytes tbs) view returns (bytes32)",
-  "function issuers(bytes32) view returns (uint8 keyType, bytes rsaModulus, bytes32 x, bytes32 y, bytes32 parent, string org, string cn)",
+  "function issuers(bytes32) view returns (uint8 keyType, bytes key, bytes32 parent, string org, string cn)",
+  "function addIssuer(bytes tbs, bytes sig, bytes32 parent, bytes hints) returns (bytes32)",
   "function assetCount() view returns (uint256)",
   "function assets(uint256) view returns (bytes32)",
   "error UnknownIssuer(bytes32 issuer)",
@@ -85,6 +86,9 @@ export async function resolveIssuer(c: Contract, x: Extracted): Promise<string |
   }
   return null;
 }
+
+/// The certificate chain as hex, so the relayer can add a signer the registry has not seen yet.
+export const chainJSON = (x: Extracted) => x.chain.map((k) => ({ tbs: hexlify(k.tbs), sig: hexlify(k.sig) }));
 
 /// Credential as hex strings, the shape the relayer accepts and ethers encodes.
 export function credentialJSON(x: Extracted, issuer: string) {
