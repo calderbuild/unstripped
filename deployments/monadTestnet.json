@@ -1,20 +1,15 @@
 {
   "chainId": 10143,
-  "contentCredentials": "0xca8aCcA21e49640B06EDEEC8380e907CF4Cad7Ff",
-  "deployBlock": 68986259,
-  "roots": [
-    "SSL.com C2PA RSA Root CA 2025",
-    "Trufo C2PA Root CA (2025, ECC P384)",
-    "Google C2PA Root CA G3"
-  ],
+  "contentCredentials": "0xF8a0fBc76149a7426ba8a2dBaa14f9068315F7dA",
+  "deployBlock": 68987474,
+  "trustListAnchors": 29,
   "txs": {
-    "sslcomIca": "0xf7283ff1e49117bbe4cc3f93ad07bffa3f0ab001fbd999d68ef3827173ae47a8",
-    "trufoIca": "0x71dceade0104d4cadbca1a34142e877590e89624ba85085bca440dcb39c79cf1",
-    "openaiTrufoLeaf": "0x53ae6078cce9d81eae2bd18836d91451ea85a02ca063b62477889e4582a34ee6",
-    "googleIca": "0xcd45ad5ab4ca102389b256ff1068b27381c4e087e1f11172f86679e3340397c1",
-    "googleLeaf": "0x98b10661a5d1e170a52a6c998036883b419a2d1d0d1ebecd46b6cbd6e426e306",
-    "register-openai": "0x8dc6db4b421b22813e660e3c6f19ea82600d72a2dec754a97b3e82cf53a7b038",
-    "register-openai-trufo": "0x0bcec094f78c23811204bf406b86a5f6f5af24cc9be6202c136fe4854da0c9f6",
-    "register-gemini": "0xc70e3e865165ea4ee20a13ef99aecb416ab279c3476742d42c1124e939083c45"
+    "sslcomIca": "0x00b41b2cc2bf854f0f2cd6faa8bfbb7bb3ed32ebd1744735d98eab3e279f0a3a",
+    "trufoIca": "0x4254de3e59055a598b648b6b2283f76cd0f76943cd84a64e1124e01d31f4563e",
+    "openaiTrufoLeaf": "0x048060c4cc75ce5455b556d79d09d220bb7f8f273013be2314a4c94e9d775d78",
+    "googleLeaf": "0xaaf18ca9b739c0571fb95130944e6d4ed8aaa0a4c1dd1fa79a597d99daa5c163",
+    "register-openai": "0x284e47a92e72cf173f99b70cc91a12afe0962fd2437615eea42baedd893eecf9",
+    "register-openai-trufo": "0x8ff90fcb37197f1385f71b44e7a10681199c98515d096f7b8d85598c10c8a068",
+    "register-gemini": "0xf8c1dd90d2c520970867a51ee4d563747fc85a71ac12058b1be195c8b2f9c58d"
   }
 }

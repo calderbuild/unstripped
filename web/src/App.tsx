@@ -164,8 +164,8 @@ export default function App() {
             <li>
               <h3>The certificate</h3>
               <p>
-                The signing certificate must be issued by a CA on the C2PA trust list. The contract parses the X.509
-                certificate and verifies the CA's signature over it.
+                The signing certificate must chain to a CA on the C2PA trust list. The contract parses each X.509
+                certificate and verifies its issuer's signature: RSA, P-256, or P-384 in Solidity.
               </p>
             </li>
             <li>
@@ -184,8 +184,10 @@ export default function App() {
             </li>
           </ol>
           <p className="aside">
-            Nobody can add a record the signer did not sign, including whoever submits it. The trust anchors were sealed
-            at deployment; there is no admin key.
+            Nobody can add a record the signer did not sign, including whoever submits it. The trust anchors are the
+            official C2PA trust list (29 of its 30 entries, from Google and Adobe to Huawei and Xiaomi), sealed at
+            deployment. There is no admin key: anyone can add a new signing certificate, and the contract checks its
+            chain up to one of those anchors.
           </p>
         </section>
 

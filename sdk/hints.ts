@@ -26,7 +26,7 @@ export function p384Hints(tbs: Uint8Array, sig: Uint8Array, parentKey: Uint8Arra
 }
 
 /// Arguments for addIssuer(cert under parent), with hints when the parent's key is P-384.
-export async function addIssuerArgs(cc: { idOf: any; issuers: any }, cert: { tbs: Uint8Array; sig: Uint8Array }, parentTbs: Uint8Array) {
+export async function addIssuerArgs(cc: any, cert: { tbs: Uint8Array; sig: Uint8Array }, parentTbs: Uint8Array) {
   const parent: string = await cc.idOf(parentTbs);
   const i = await cc.issuers(parent);
   const P384 = 3n;
